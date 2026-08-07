@@ -14,24 +14,31 @@ Libraries used:
 Project Structure 🧬
 
 ```
-files/
-├── cves.csv               — Raw extracted CVE data (from the API)
-├── cves_cleaned.csv        — Cleaned CVE data, formatted for Power BI export
-├── products_raw.csv        — Raw vendor/product data (from the API)
-└── products.csv             — Cleaned vendor/product data, consistent with cves_cleaned
+files/                        (generated locally — not tracked in git, see .gitignore)
+├── cves.csv                  — Raw CVE data exported from the notebook (from the API)
+├── cves_cleaned.csv          — Cleaned CVE data, formatted for Power BI export
+├── cves_ETL.csv              — Cleaned CVE data as produced by the ETL (main.py)
+├── products_raw.csv          — Raw vendor/product data exported from the notebook
+├── products.csv              — Cleaned vendor/product data, consistent with cves_cleaned
+└── products_ETL.csv          — Cleaned vendor/product data as produced by the ETL (main.py)
+
+img/
+└── dashboard_capture.png     — Screenshot of the final Power BI dashboard
 
 notebooks/
-└── Connection_and_EDA.ipynb — API extraction, JSON flattening and full EDA
+└── Connection_and_EDA.ipynb  — API extraction, JSON flattening and full EDA (exploratory)
 
 src/
-├── db.py                   — Database name and table schemas (DDL)
-├── extraction.py            — NVD API connection, pagination and CVE field extraction
-├── functions.py              — MySQL connection, table creation and data insertion
-└── transformation.py         — Data cleaning and relational transformation logic
+├── db.py                     — Database name and table schemas (DDL)
+├── extraction.py             — NVD API connection, pagination and CVE field extraction
+├── functions.py               — MySQL connection, table creation and data insertion
+└── transformation.py          — Data cleaning and relational transformation logic
 
-main.py                      — Orchestrates the ETL: reads the raw CSVs, transforms them
-                                 and loads them into MySQL
-Dashboard.pbix                — Power BI dashboard built on top of the cleaned data
+main.py                       — Independent ETL: connects to the NVD API, transforms the
+                                  data and loads it into MySQL (does not depend on the notebook)
+Dashboard.pbix                 — Power BI dashboard built on top of the cleaned data
+Software_Vulnerability_Exposure_Report.docx — Final summary report (objective, insights,
+                                  recommendations, data dictionary)
 ```
 
 Project Overview 🔩
@@ -72,37 +79,30 @@ Getting Started ▶️
 
 1. Clone the repository
 
-```
-git clone <https://github.com/MATC-90/bda-modulo-final-evaluacion-final-MATC-90.git>
-```
+git clone https://github.com/MATC-90/bda-modulo-final-evaluacion-final-MATC-90.git
 
 2. Install the required libraries
 
-```
 pip install requests pandas mysql-connector-python python-dotenv
-```
 
 3. Set up environment variables
 
 Create a `.env` file in the project root with:
 
-```
 NVD_API_KEY=your_nvd_api_key
 PASS_SQL=your_local_mysql_password
-```
 
-4. Run the extraction and EDA notebook
+4. Run the ETL (for the MySQL database)
 
-Open `notebooks/Connection_and_EDA.ipynb` and run it top to bottom to fetch fresh CVE data from the NVD API and regenerate the files in `files/`.
-
-5. Run the ETL
-
-```
 python main.py
-```
 
-This reads `files/cves.csv` and `files/products_raw.csv`, applies the transformation, and loads everything into the local `cve_analytics` MySQL database.
+This connects directly to the NVD API, downloads and cleans the CVE data, and loads it
+into a local MySQL database (`cve_analytics`). It does not require the notebook to be
+run first — the two are independent.
 
-6. Explore the dashboard
+5. Run the notebook (required for the Power BI dashboard)
 
-Open `Dashboard.pbix` in Power BI Desktop.
+Open `notebooks/Connection_and_EDA.ipynb` and run it top to bottom. This performs the
+API extraction, the full exploratory analysis, and generates `cves_cleaned.csv` and
+`products.csv` in `files/` — the two files `Dashboard.pbix` reads from. Running this
+notebook is required before opening the dashboard for the first time.
