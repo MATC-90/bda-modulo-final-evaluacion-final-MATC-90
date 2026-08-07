@@ -1,2 +1,108 @@
-# bda-modulo-final-evaluacion-final-MATC-90
-Study on public NVD data regarding cybersecurity vulnerabilities
+CVE Analytics ETL 🛡️
+This project consists of an ETL pipeline that extracts vulnerability data (CVEs) from the NVD REST API, transforms it into a clean relational structure, and loads it into a MySQL database for analysis. It was completed as part of a Data Analysis bootcamp module evaluation. It covers API data extraction with pagination and retry logic, data cleaning and transformation, relational database design and loading, and dashboard visualization in Power BI.
+
+Tech Stack 🔧
+Python 3.14 · Jupyter Notebook · MySQL · Power BI
+
+Libraries used:
+
+* `requests` — HTTP requests to the NVD API, with retry and pagination handling
+* `pandas` — data manipulation and DataFrame management
+* `mysql-connector-python` — MySQL database connection, table creation and data loading
+* `python-dotenv` — environment variable management (API key, DB password)
+
+Project Structure 🧬
+
+```
+files/
+├── cves.csv               — Raw extracted CVE data (from the API)
+├── cves_cleaned.csv        — Cleaned CVE data, formatted for Power BI export
+├── products_raw.csv        — Raw vendor/product data (from the API)
+└── products.csv             — Cleaned vendor/product data, consistent with cves_cleaned
+
+notebooks/
+└── Connection_and_EDA.ipynb — API extraction, JSON flattening and full EDA
+
+src/
+├── db.py                   — Database name and table schemas (DDL)
+├── extraction.py            — NVD API connection, pagination and CVE field extraction
+├── functions.py              — MySQL connection, table creation and data insertion
+└── transformation.py         — Data cleaning and relational transformation logic
+
+main.py                      — Orchestrates the ETL: reads the raw CSVs, transforms them
+                                 and loads them into MySQL
+Dashboard.pbix                — Power BI dashboard built on top of the cleaned data
+```
+
+Project Overview 🔩
+
+Phase 1 — Extraction (`notebooks/Connection_and_EDA.ipynb`, `src/extraction.py`)
+
+* Connection to the NVD REST API (`services.nvd.nist.gov`) with API key authentication
+* Retry logic for temporary errors (429, 5xx) and connection/timeout exceptions
+* Date-windowed pagination (120-day windows, the API's maximum range) to retrieve all CVEs published from 2021 onward
+* Flattening of the nested JSON response into a flat structure per CVE: CVSS metrics with version fallback (v3.1 → v3.0 → v2.0), primary CWE weakness, and all associated vendor/product pairs
+
+Phase 2 — EDA and Cleaning (`notebooks/Connection_and_EDA.ipynb`)
+
+* Data quality checks: duplicates, null distribution, valid score ranges, cross-version CVSS consistency
+* Removal of `Rejected` CVEs (no reliable severity data for analysis)
+* Type corrections: date columns to `datetime`, CWE code extraction to nullable integer
+* Description text cleanup: removal of line breaks and normalization of quotes/formula characters
+* Export of both a raw and a Power-BI-ready (Spanish decimal formatting) version of the cleaned datasets
+
+Phase 3 — Transformation (`src/transformation.py`)
+
+* Reapplies the same cleaning logic validated in the EDA (status filtering, CWE extraction, date typing, description cleanup) so the ETL and the notebook stay in sync
+* Builds the `severities` and `statuses` master/lookup tables from the unique values present in the data
+* Maps `base_severity` and `vuln_status` to their corresponding foreign keys (`severity_id`, `status_id`)
+* Filters the products table to keep only vendor/product rows linked to a surviving CVE
+
+Phase 4 — Load (`src/functions.py`, `src/db.py`, `main.py`)
+
+* Connects to a local MySQL server and creates the `cve_analytics` database if it doesn't exist
+* Creates the relational schema: `severities` and `statuses` (master tables), `cves` (parent table) and `cve_products` (child table, N-to-N with `cves`)
+* Loads each DataFrame into its corresponding table, sanitizing pandas null markers (`NaN`/`NA`/`NaT`) into `NULL` beforehand
+
+Phase 5 — Dashboard (`Dashboard.pbix`)
+
+* Power BI dashboard built on top of `cves_cleaned.csv` and `products.csv` for visual exploration of severity trends, affected vendors/products and CVE volume over time
+
+Getting Started ▶️
+
+1. Clone the repository
+
+```
+git clone <https://github.com/MATC-90/bda-modulo-final-evaluacion-final-MATC-90.git>
+```
+
+2. Install the required libraries
+
+```
+pip install requests pandas mysql-connector-python python-dotenv
+```
+
+3. Set up environment variables
+
+Create a `.env` file in the project root with:
+
+```
+NVD_API_KEY=your_nvd_api_key
+PASS_SQL=your_local_mysql_password
+```
+
+4. Run the extraction and EDA notebook
+
+Open `notebooks/Connection_and_EDA.ipynb` and run it top to bottom to fetch fresh CVE data from the NVD API and regenerate the files in `files/`.
+
+5. Run the ETL
+
+```
+python main.py
+```
+
+This reads `files/cves.csv` and `files/products_raw.csv`, applies the transformation, and loads everything into the local `cve_analytics` MySQL database.
+
+6. Explore the dashboard
+
+Open `Dashboard.pbix` in Power BI Desktop.
