@@ -5,6 +5,7 @@ import pandas as pd
 import src.functions as fn
 import src.db as db
 import src.transformation as tr
+import src.extraction as ext
 
 # Environment variables
 import os
@@ -12,18 +13,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 sql_password = os.getenv("PASS_SQL")
+api_key = os.getenv("NVD_API_KEY")
+
 
 
 # =======================================================================
 # MAIN LOADING SCRIPT (ETL)
 # =======================================================================
 
+
 # -----------------------------------------------------------------------
 # 1. EXTRACTION (Extract)
 # -----------------------------------------------------------------------
-print("Loading raw CSV data...")
-df_cves_raw = pd.read_csv("files/cves.csv")
-df_products_raw = pd.read_csv("files/products_raw.csv")
+print("Connecting to NVD API...")
+
+url = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+headers = {"apiKey": api_key}
+
+raw_cves = ext.download_all_cves(url, headers, start_year=2021, results_per_page=1000)
+print(f"\nDownload completed: {len(raw_cves)} raw CVEs.")
+
+df_cves_raw = tr.build_cves_dataframe(raw_cves, ext.extract_cve_fields)
+df_products_raw = tr.build_products_dataframe(df_cves_raw)
 
 
 # -----------------------------------------------------------------------
@@ -33,6 +44,8 @@ print("Applying full cleaning and relational transformations...")
 df_severities, df_statuses, df_cves_final, df_products_final = tr.transform_cve_data(df_cves_raw, df_products_raw)
 print("Transformation completed successfully!")
 
+df_cves_final.to_csv("files/cves_ETL.csv", index=False)
+df_products_final.to_csv("files/products_ETL.csv", index=False)
 
 # -----------------------------------------------------------------------
 # 3. LOADING (Load)
